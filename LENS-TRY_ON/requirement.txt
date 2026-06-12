@@ -1,0 +1,15 @@
+fastapi
+requests
+ultralytics
+numpy
+timm
+torch
+openai
+Pillow
+scikit-learn
+gtts
+moviepy
+opencv-python
+uvicorn
+python-multipart==0.0.9
+python-dotenv

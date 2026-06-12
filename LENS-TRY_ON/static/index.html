@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>StyleLens AI</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">AI fashion workspace</p>
+            <h1>StyleLens AI</h1>
+          </div>
+          <div class="status" id="status">Starting...</div>
+        </header>
+
+        <nav class="tabs" aria-label="Main sections">
+          <button class="tab active" data-tab="tryon" type="button">Try-on</button>
+          <button class="tab" data-tab="rewards" type="button">Challenges</button>
+          <button class="tab" data-tab="chat" type="button">Chat</button>
+          <button class="tab" data-tab="video" type="button">Video</button>
+        </nav>
+
+        <section id="tab-tryon" class="tab-panel active">
+          <section class="panel upload-panel">
+            <div>
+              <h2>Upload a look</h2>
+              <p class="muted">Use a clear fashion image first. Video support exists, but image testing is much faster locally.</p>
+            </div>
+            <form id="detectForm" class="upload-form">
+              <input id="detectFile" name="file" type="file" accept="image/*,video/*" required>
+              <button type="submit">Detect items</button>
+            </form>
+          </section>
+
+          <section class="grid">
+            <section class="panel preview-panel">
+              <div class="section-head">
+                <h2>Detected output</h2>
+                <span id="fileTypeLabel" class="pill">No file</span>
+              </div>
+              <div id="detectedPreview" class="media-box empty">Upload an image to see detections.</div>
+            </section>
+
+            <section class="panel">
+              <div class="section-head">
+                <h2>Detected classes</h2>
+                <button id="similarBtn" type="button" disabled>Find similar</button>
+              </div>
+              <div id="classesList" class="check-list empty">No detected classes yet.</div>
+            </section>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <h2>Similar catalog items</h2>
+              <span class="muted" id="catalogHint">Choose a detected class first.</span>
+            </div>
+            <div id="similarGrid" class="catalog-grid empty">No catalog results yet.</div>
+          </section>
+
+          <section class="grid">
+            <section class="panel">
+              <div class="section-head">
+                <h2>Ask about selected item</h2>
+                <span class="pill" id="selectedLabel">None selected</span>
+              </div>
+              <form id="askForm" class="ask-form">
+                <input id="questionText" type="text" placeholder="Example: Is this returnable?" required>
+                <button type="submit" disabled id="askBtn">Ask</button>
+              </form>
+              <div id="answerBox" class="answer empty">Answer will appear here.</div>
+            </section>
+
+            <section class="panel">
+              <div class="section-head">
+                <h2>Generate try-on</h2>
+                <span class="muted">Requires OPENAI_API_KEY</span>
+              </div>
+              <form id="tryOnForm" class="upload-form">
+                <input id="tryOnFile" type="file" accept="image/*" required>
+                <button type="submit" disabled id="tryOnBtn">Generate</button>
+              </form>
+              <div id="tryOnPreview" class="media-box empty">Generated result will appear here.</div>
+            </section>
+          </section>
+        </section>
+
+        <section id="tab-rewards" class="tab-panel">
+          <section class="grid">
+            <form id="rewardForm" class="panel stack">
+              <h2>Submit a challenge look</h2>
+              <label>Challenge
+                <select id="rewardChallenge"></select>
+              </label>
+              <label>Name
+                <input id="rewardAuthor" type="text" maxlength="40" placeholder="Guest">
+              </label>
+              <label>Caption
+                <input id="rewardTitle" type="text" maxlength="120" placeholder="Weekend monochrome fit">
+              </label>
+              <label>Image
+                <input id="rewardFile" type="file" accept="image/*">
+              </label>
+              <label>Or image URL
+                <input id="rewardUrl" type="text" placeholder="https://...">
+              </label>
+              <button type="submit">Submit look</button>
+            </form>
+
+            <section class="panel stack">
+              <div class="section-head">
+                <h2>Wallet</h2>
+                <span class="pill" id="coinBalance">0 coins</span>
+              </div>
+              <div id="challengeList" class="challenge-list empty">Loading challenges...</div>
+            </section>
+          </section>
+          <section class="panel">
+            <div class="section-head">
+              <h2>Challenge feed</h2>
+              <button id="refreshRewardsBtn" type="button">Refresh</button>
+            </div>
+            <div id="rewardFeed" class="feed empty">No uploads yet.</div>
+          </section>
+        </section>
+
+        <section id="tab-chat" class="tab-panel">
+          <section class="grid chat-layout">
+            <form id="chatSetupForm" class="panel stack">
+              <h2>Chat room</h2>
+              <label>Your name
+                <input id="chatName" type="text" maxlength="40" placeholder="Guest">
+              </label>
+              <label>Room
+                <input id="chatRoom" type="text" maxlength="80" value="style-room">
+              </label>
+              <button type="submit">Open room</button>
+            </form>
+            <section class="panel chat-panel">
+              <div class="section-head">
+                <h2 id="chatRoomTitle">Messages</h2>
+                <button id="refreshChatBtn" type="button">Refresh</button>
+              </div>
+              <div id="chatMessages" class="messages empty">Open a room to start chatting.</div>
+              <form id="chatMessageForm" class="message-form">
+                <input id="chatMessageInput" type="text" maxlength="1000" placeholder="Type a message" disabled>
+                <button id="sendChatBtn" type="submit" disabled>Send</button>
+              </form>
+            </section>
+          </section>
+        </section>
+
+        <section id="tab-video" class="tab-panel">
+          <section class="panel stack">
+            <div class="section-head">
+              <h2>Video consult room</h2>
+              <span class="muted" id="videoStatus">Not connected</span>
+            </div>
+            <form id="videoSetupForm" class="video-controls">
+              <input id="videoName" type="text" maxlength="40" placeholder="Your name">
+              <input id="videoRoom" type="text" maxlength="80" value="style-room">
+              <button id="joinVideoBtn" type="submit">Join</button>
+              <button id="leaveVideoBtn" type="button" disabled>Leave</button>
+              <button id="toggleMicBtn" type="button" disabled>Mic</button>
+              <button id="toggleCamBtn" type="button" disabled>Camera</button>
+            </form>
+          </section>
+          <section class="video-grid">
+            <div class="video-tile">
+              <video id="localVideo" autoplay playsinline muted></video>
+              <span>You</span>
+            </div>
+            <div id="remoteVideos" class="remote-videos"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
