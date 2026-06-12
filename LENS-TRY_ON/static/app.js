@@ -520,10 +520,15 @@ async function boot() {
   try {
     const health = await apiJson("/api/health");
     state.openaiConfigured = Boolean(health.openai_configured);
-    const modelNote = health.fashion_detector_loaded ? "" : ", fallback detection";
+    const detectorNote = health.ml_ready
+      ? (health.fashion_detector_loaded ? ", detector ready" : ", fallback detector")
+      : ", detector loads on first use";
+    el("openaiHint").textContent = state.openaiConfigured
+      ? "OpenAI ready"
+      : "Set OPENAI_API_KEY to enable generation";
     setStatus(
-      `${health.catalog_images} catalog images, ${health.embeddings} embeddings${modelNote}${state.openaiConfigured ? "" : ", AI generation disabled"}`,
-      state.openaiConfigured && health.fashion_detector_loaded ? "ok" : "warn"
+      `${health.catalog_images} catalog images, ${health.embeddings} embeddings${detectorNote}${state.openaiConfigured ? "" : ", AI generation disabled"}`,
+      state.openaiConfigured && health.yolo_model_present ? "ok" : "warn"
     );
     await loadRewards();
     setVideoControls(false);

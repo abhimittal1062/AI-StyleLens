@@ -520,14 +520,21 @@ def validate_embeddings_prompts_matching(embeddings,prompts_list):
 
 
 detection_model = None
-embeddings = []
-prompts = {}
-prompts_list = []
+embeddings = load_embeddings(embeddings_file) or []
+prompts, prompts_list = load_prompts(prompt_file)
+prompts = prompts or {}
+prompts_list = prompts_list or []
 extractor = None
 resources_ready = False
 resources_loading = False
 resources_error = None
 resources_lock = Lock()
+
+rt = validate_embeddings_prompts_matching(embeddings, prompts_list)
+if not rt:
+    print("Error: embeddings and prompts don't 1:1 ERROR !!!")
+else:
+    print("SUCCESS: embedding file names map to prompt map files")
 
 
 def ensure_ml_resources():
@@ -547,10 +554,12 @@ def ensure_ml_resources():
             from ultralytics import YOLO
 
             detection_model = YOLO(yolo_model_file)
-            embeddings = load_embeddings(embeddings_file) or []
-            prompts, prompts_list = load_prompts(prompt_file)
-            prompts = prompts or {}
-            prompts_list = prompts_list or []
+            if not embeddings:
+                embeddings = load_embeddings(embeddings_file) or []
+            if not prompts_list:
+                prompts, prompts_list = load_prompts(prompt_file)
+                prompts = prompts or {}
+                prompts_list = prompts_list or []
             extractor = FeatureExtractor("resnet50")
 
             rt = validate_embeddings_prompts_matching(embeddings, prompts_list)
@@ -602,6 +611,7 @@ async def health():
         "status": "ok",
         "openai_configured": client is not None,
         "yolo_model": Path(yolo_model_file).name,
+        "yolo_model_present": Path(yolo_model_file).exists(),
         "ml_ready": resources_ready,
         "ml_loading": resources_loading,
         "ml_error": resources_error,
