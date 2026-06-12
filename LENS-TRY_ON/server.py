@@ -577,7 +577,8 @@ def warm_ml_resources():
 
 @app.on_event("startup")
 async def start_background_model_warmup():
-    Thread(target=warm_ml_resources, daemon=True).start()
+    if os.environ.get("WARM_ML_ON_STARTUP", "").lower() in {"1", "true", "yes"}:
+        Thread(target=warm_ml_resources, daemon=True).start()
 
 
 client = OpenAI(api_key=openai_api_key) if openai_api_key else None

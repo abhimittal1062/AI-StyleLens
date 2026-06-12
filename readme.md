@@ -103,6 +103,7 @@ Required environment variables on Render:
 OPENAI_API_KEY=your_key_here
 OPENAI_IMAGE_MODEL=gpt-image-1
 YOLO_CONFIG_DIR=/tmp
+WARM_ML_ON_STARTUP=false
 ```
 
 `OPENAI_API_KEY` is optional for basic detection, catalog matching, challenges, chat, and video signaling. It is required for OpenAI Q&A and generated try-on.
