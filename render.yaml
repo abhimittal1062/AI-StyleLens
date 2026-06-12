@@ -14,7 +14,7 @@ services:
       - key: WEB_CONCURRENCY
         value: "1"
       - key: YOLO_CONFIG_DIR
-        value: /tmp/ultralytics
+        value: /tmp
       - key: OPENAI_IMAGE_MODEL
         value: gpt-image-1
       - key: OPENAI_API_KEY

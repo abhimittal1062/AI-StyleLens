@@ -102,7 +102,7 @@ Required environment variables on Render:
 ```text
 OPENAI_API_KEY=your_key_here
 OPENAI_IMAGE_MODEL=gpt-image-1
-YOLO_CONFIG_DIR=/tmp/ultralytics
+YOLO_CONFIG_DIR=/tmp
 ```
 
 `OPENAI_API_KEY` is optional for basic detection, catalog matching, challenges, chat, and video signaling. It is required for OpenAI Q&A and generated try-on.

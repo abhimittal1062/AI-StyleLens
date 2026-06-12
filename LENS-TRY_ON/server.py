@@ -1,6 +1,5 @@
 import os
-import cv2
-
+os.environ.setdefault("YOLO_CONFIG_DIR", "/tmp")
 import base64
 import time
 import uuid
@@ -13,16 +12,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
-from ultralytics import YOLO
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from typing import List  # Import List from typing module
-import timm
-import torch
 from sklearn.preprocessing import normalize
 from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity
-from timm.data import resolve_data_config
-from timm.data.transforms_factory import create_transform
 import json
 from pydantic import BaseModel, Field
 from openai import OpenAI  # OpenAI Python library to make API calls
@@ -34,9 +28,8 @@ import os
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
-from moviepy.editor import VideoFileClip
 import subprocess
-from threading import Lock
+from threading import Lock, Thread
 
 
 
@@ -226,6 +219,7 @@ def populate_label_dict():
 
 ## embeddings = [{"vector":[512 normalized values],"image_file_name":<image_file_name>, "prompt":<detail description of the image>},...]
 def get_similar_images(embeddings,input_images,prompts,number_of_similar_images):
+    ensure_ml_resources()
     
     print(f"        ===> get_similar_images(embeddings, input_images, prompts, {number_of_similar_images})")
 
@@ -284,6 +278,10 @@ def similar_matches(input_embedding, embeddings, number_of_suggestions, class_na
 
 class FeatureExtractor:
     def __init__(self, modelname):
+        import timm
+        from timm.data import resolve_data_config
+        from timm.data.transforms_factory import create_transform
+
         # Load the pre-trained model
         self.model = timm.create_model(
             modelname, pretrained=True, num_classes=0, global_pool="avg"
@@ -298,6 +296,8 @@ class FeatureExtractor:
         self.preprocess = create_transform(**config)
 
     def __call__(self, imagepath):
+        import torch
+
         # Preprocess the input image
         input_image = Image.open(imagepath).convert("RGB")  # Convert to RGB if needed
         input_image = self.preprocess(input_image)
@@ -398,6 +398,7 @@ def convert_to_high_quality_png(input_image_path, output_image_path, target_size
 
 # Function to crop and save detected objects and create an annotated image
 def generate_crop_mask_files(image_path, output_dir):
+    ensure_ml_resources()
 
     print(f"    ===> generate_crop_mask_files({image_path},{output_dir})")
 
@@ -518,18 +519,65 @@ def validate_embeddings_prompts_matching(embeddings,prompts_list):
     return prompts_keys == embeddings_keys
 
 
-detection_model = YOLO(yolo_model_file)
-embeddings = load_embeddings(embeddings_file)
-prompts, prompts_list = load_prompts(prompt_file)
-# Extractor, for RT feature extraction of input corpped image(s)
-extractor = FeatureExtractor("resnet50")
+detection_model = None
+embeddings = []
+prompts = {}
+prompts_list = []
+extractor = None
+resources_ready = False
+resources_loading = False
+resources_error = None
+resources_lock = Lock()
 
-# check if the prompt is present for all the embedded files
-rt = validate_embeddings_prompts_matching(embeddings,prompts_list)
-if not rt:
-    print("Error: embeddings and prompts don't 1:1 ERROR !!!")
-else:
-    print("SUCCESS: embedding file names map to prompt map files")
+
+def ensure_ml_resources():
+    global detection_model, embeddings, prompts, prompts_list, extractor
+    global resources_ready, resources_loading, resources_error
+
+    if resources_ready:
+        return
+
+    with resources_lock:
+        if resources_ready:
+            return
+
+        resources_loading = True
+        resources_error = None
+        try:
+            from ultralytics import YOLO
+
+            detection_model = YOLO(yolo_model_file)
+            embeddings = load_embeddings(embeddings_file) or []
+            prompts, prompts_list = load_prompts(prompt_file)
+            prompts = prompts or {}
+            prompts_list = prompts_list or []
+            extractor = FeatureExtractor("resnet50")
+
+            rt = validate_embeddings_prompts_matching(embeddings, prompts_list)
+            if not rt:
+                print("Error: embeddings and prompts don't 1:1 ERROR !!!")
+            else:
+                print("SUCCESS: embedding file names map to prompt map files")
+
+            resources_ready = True
+        except Exception as exc:
+            resources_error = str(exc)
+            print(f"ERROR: ML resources failed to load: {exc}")
+            raise
+        finally:
+            resources_loading = False
+
+
+def warm_ml_resources():
+    try:
+        ensure_ml_resources()
+    except Exception:
+        pass
+
+
+@app.on_event("startup")
+async def start_background_model_warmup():
+    Thread(target=warm_ml_resources, daemon=True).start()
 
 
 client = OpenAI(api_key=openai_api_key) if openai_api_key else None
@@ -547,12 +595,15 @@ async def index():
 @app.get("/api/health")
 async def health():
     catalog_count = len([p for p in Path(CATALOG_DIRECTORY).glob("*.png")]) if Path(CATALOG_DIRECTORY).exists() else 0
-    model_classes = {normalize_class_name(name) for name in detection_model.names.values()}
+    model_classes = {normalize_class_name(name) for name in detection_model.names.values()} if detection_model else set()
     fashion_detector_loaded = len(model_classes & fashion_label_set) >= 5
     return {
         "status": "ok",
         "openai_configured": client is not None,
         "yolo_model": Path(yolo_model_file).name,
+        "ml_ready": resources_ready,
+        "ml_loading": resources_loading,
+        "ml_error": resources_error,
         "fashion_detector_loaded": fashion_detector_loaded,
         "embeddings": len(embeddings or []),
         "prompts": len(prompts_list or []),
@@ -747,6 +798,8 @@ async def video_signaling(websocket: WebSocket, room_id: str, peer_id: str):
 
 
 def extract_frames(video_path: str, output_dir: str):
+    import cv2
+
     cap = cv2.VideoCapture(video_path)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -793,6 +846,8 @@ def sort_frames(filenames):
 
 
 def merge_frames_to_video(frames: list, output_video_path: str, fps: float):
+    import cv2
+
     sorted_frames = sort_frames(frames)
 
     frame = cv2.imread(sorted_frames[0])
@@ -871,6 +926,8 @@ def process_video(input_file_path, upload_directory, storage, file, max_workers=
 
 
 def reduce_fps(input_path, output_path, target_fps):
+    from moviepy.editor import VideoFileClip
+
     # Load the original video
     video = VideoFileClip(input_path)
     
