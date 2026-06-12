@@ -78,6 +78,37 @@ OPENAI_IMAGE_MODEL=gpt-image-1
 
 Do not commit `.env`. It is ignored by Git.
 
+## Deploy To Render
+
+The repository includes a Render Blueprint:
+
+```text
+render.yaml
+```
+
+Use these settings if you create the service manually instead of using the Blueprint:
+
+```text
+Runtime: Python
+Root Directory: LENS-TRY_ON
+Build Command: python -m pip install --upgrade pip && python -m pip install -r requirement.txt
+Start Command: python -m uvicorn server:app --host 0.0.0.0 --port $PORT
+Health Check Path: /api/health
+Python Version: 3.12.2
+```
+
+Required environment variables on Render:
+
+```text
+OPENAI_API_KEY=your_key_here
+OPENAI_IMAGE_MODEL=gpt-image-1
+YOLO_CONFIG_DIR=/tmp/ultralytics
+```
+
+`OPENAI_API_KEY` is optional for basic detection, catalog matching, challenges, chat, and video signaling. It is required for OpenAI Q&A and generated try-on.
+
+Render free instances have limited memory. This app loads PyTorch, Ultralytics YOLO, Timm, and local model weights at startup, so a paid instance may be needed if the free instance runs out of memory during build or boot.
+
 ## Model
 
 The app automatically prefers:

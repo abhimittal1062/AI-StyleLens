@@ -9,7 +9,7 @@ Pillow
 scikit-learn
 gtts
 moviepy
-opencv-python
+opencv-python-headless
 uvicorn
 python-multipart==0.0.9
 python-dotenv

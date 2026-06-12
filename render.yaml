@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ai-stylelens
+    runtime: python
+    rootDir: LENS-TRY_ON
+    plan: free
+    buildCommand: python -m pip install --upgrade pip && python -m pip install -r requirement.txt
+    startCommand: python -m uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.2
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: YOLO_CONFIG_DIR
+        value: /tmp/ultralytics
+      - key: OPENAI_IMAGE_MODEL
+        value: gpt-image-1
+      - key: OPENAI_API_KEY
+        sync: false
